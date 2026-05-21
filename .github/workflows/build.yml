@@ -23,7 +23,7 @@ jobs:
         run: npm install
 
       - name: 打包 macOS DMG
-        run: npx electron-builder --mac dmg zip --x64
+        run: npx electron-builder --mac dmg zip --x64 --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
@@ -53,7 +53,7 @@ jobs:
         run: npm install
 
       - name: 打包 Windows NSIS 安装包
-        run: npx electron-builder --win nsis zip --x64
+        run: npx electron-builder --win nsis zip --x64 --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
