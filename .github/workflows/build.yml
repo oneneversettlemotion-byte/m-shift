@@ -3,8 +3,8 @@ name: Build M-SHIFT
 on:
   push:
     tags:
-      - 'v*'          # 推送 v1.0.0 这样的 tag 时触发
-  workflow_dispatch:  # 也支持在 GitHub 网页手动触发
+      - 'v*'
+  workflow_dispatch:
 
 jobs:
   # ─── macOS 打包 ───────────────────────────────────────────────
@@ -18,15 +18,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
 
       - name: 安装依赖
-        run: npm ci
+        run: npm install
 
       - name: 打包 macOS DMG
-        run: npm run dist:mac
+        run: npx electron-builder --mac dmg zip --x64
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false
 
       - name: 上传产物
         uses: actions/upload-artifact@v4
@@ -48,13 +48,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
 
       - name: 安装依赖
-        run: npm ci
+        run: npm install
 
       - name: 打包 Windows NSIS 安装包
-        run: npx electron-builder --win --x64
+        run: npx electron-builder --win nsis zip --x64
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
