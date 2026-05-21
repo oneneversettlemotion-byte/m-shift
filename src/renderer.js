@@ -116,7 +116,8 @@ async function addFiles(filePaths) {
 }
 
 async function addSingleFile(fp) {
-  const name = fp.split('/').pop();
+  // 兼容 Windows 路径（\）和 macOS/Linux 路径（/）
+  const name = fp.split(/[\\/]/).pop();
   const type = await window.api.detectFileType(fp);
 
   const fileObj = {
@@ -451,7 +452,7 @@ async function startConvert() {
 
     const outputName = filesToConvert.length === 1
       ? ($('output-name').value.trim() || 'output')
-      : f.name.replace(/\.[^.]+$/, '').replace(/\[序列\]\s*/, '') + '_converted';
+      : f.name.replace(/\.[^.]+$/, '').replace(/\[序列\]\s*/, '').split(/[\\/]/).pop() + '_converted';
 
     const settings = buildSettings();
     const isSeq = f.isSequence;

@@ -263,7 +263,9 @@ ipcMain.handle('start-convert', async (event, options) => {
 
   try {
     const ext = format.ext;
-    const outputPath = path.join(outputDir, `${outputName}.${ext}`);
+    // 只取文件名部分，防止 Windows 路径分隔符混入 outputName
+    const safeName = path.basename(outputName.replace(/\\/g, '/'));
+    const outputPath = path.join(outputDir, `${safeName}.${ext}`);
 
     let sequencePattern = null;
     if (isSequence) {
