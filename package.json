@@ -1,6 +1,6 @@
 {
   "name": "m-shift",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "M-SHIFT — Professional Media Format Converter",
   "main": "src/main.js",
   "scripts": {
