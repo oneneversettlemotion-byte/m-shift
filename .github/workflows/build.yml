@@ -23,7 +23,7 @@ jobs:
         run: npm install
 
       - name: 打包 macOS DMG
-        run: npx electron-builder --mac dmg zip --x64 --publish never
+        run: npx electron-builder --mac dmg zip --x64 --arm64 --universal --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
