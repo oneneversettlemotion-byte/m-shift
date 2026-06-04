@@ -18,9 +18,11 @@ const $ = id => document.getElementById(id);
 // ── Init（等 DOM ready）──────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', async () => {
   state.formats = await window.api.getFormats();
-  renderFormatGrid('video');
+  renderFormatGrid('video');   // 必须在 setupEventListeners 之前先渲染一次
   setupEventListeners();
   setupIPC();
+  initDownloadUI();
+  initPageSwitcher();
   addLog('M-SHIFT 已就绪。', 'info');
 });
 
@@ -38,7 +40,7 @@ function renderFormatGrid(category) {
 
   const formats = state.formats[category] || [];
 
-  // 用 DocumentFragment 批量构建后一次性替换，避免先清空再插入导致高度塌陷跳动
+  // 用 DocumentFragment 批量构建后一次性替换
   const fragment = document.createDocumentFragment();
   formats.forEach((fmt) => {
     const card = document.createElement('div');
@@ -51,19 +53,18 @@ function renderFormatGrid(category) {
     fragment.appendChild(card);
   });
 
-  // 一次性替换，不会出现中间空白帧
   formatGrid.replaceChildren(fragment);
-
-  // 整体淡入
-  formatGrid.style.opacity = '0';
-  requestAnimationFrame(() => {
-    formatGrid.style.transition = 'opacity 0.15s ease';
-    formatGrid.style.opacity = '1';
-  });
+  // 直接显示，不用 rAF（rAF 在 display:none 父元素下会丢失）
+  formatGrid.style.opacity = '1';
+  formatGrid.style.transition = '';
 
   if (formats.length > 0) {
     selectFormat(formats[0], formatGrid.firstElementChild);
   }
+
+  // 音频 tab 显示「加密音乐解锁」按钮
+  const unlockBtn = document.getElementById('btn-unlock-music');
+  if (unlockBtn) unlockBtn.style.display = (category === 'audio') ? '' : 'none';
 
   updateSettingsVisibility(category);
 }
@@ -118,12 +119,29 @@ async function addFiles(filePaths) {
 async function addSingleFile(fp) {
   // 兼容 Windows 路径（\）和 macOS/Linux 路径（/）
   const name = fp.split(/[\\/]/).pop();
+
+  // 加密音乐文件：先解密
+  if (await window.api.isEncryptedAudio(fp)) {
+    addLog(`检测到加密音乐: ${name}，正在解密...`, 'info');
+    showToast(`正在解密 ${name}...`, 'info');
+    const result = await window.api.decryptMusic(fp, null);
+    if (!result.ok) {
+      addLog(`解密失败: ${result.error}`, 'error');
+      showToast(`解密失败: ${result.error}`, 'error');
+      return;
+    }
+    addLog(`解密成功 → ${result.outputPath} (${result.format})`, 'success');
+    showToast(`解密成功，已加入转换列表`, 'success');
+    fp = result.outputPath; // 用解密后的文件继续走流程
+  }
+
+  const decryptedName = fp.split(/[\\/]/).pop();
   const type = await window.api.detectFileType(fp);
 
   const fileObj = {
     id: Date.now() + Math.random(),
     path: fp,
-    name,
+    name: decryptedName,
     type,
     meta: null,
     isSequence: false
@@ -688,6 +706,15 @@ function setupEventListeners() {
     });
   });
 
+  // 加密音乐解锁按钮
+  const unlockBtn = $('btn-unlock-music');
+  if (unlockBtn) {
+    unlockBtn.addEventListener('click', () => {
+      window.api.openUnlockMusicWindow();
+      addLog('打开加密音乐解锁窗口', 'info');
+    });
+  }
+
   // 输出文件夹
   $('output-path-display').addEventListener('click', async () => {
     try {
@@ -770,4 +797,304 @@ function setupEventListeners() {
   document.addEventListener('dragover',  handleDragOver);
   document.addEventListener('dragleave', handleDragLeave);
   document.addEventListener('drop',      handleDrop);
+}
+
+// ── Download UI ───────────────────────────────────────────────────────────────
+const downloadState = {
+  isDownloading: false,
+  ytdlpInstalled: false,
+  outputDir: null
+};
+
+// ── Page Switcher ────────────────────────────────────────────────────────────
+function initPageSwitcher() {
+  const tabs = document.querySelectorAll('.page-tab');
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const page = tab.dataset.page;
+      switchPage(page);
+    });
+  });
+}
+
+function switchPage(page) {
+  const dlPage = $('page-download');
+  const cvPage = $('page-convert');
+  const tabDl = $('tab-download');
+  const tabCv = $('tab-convert');
+
+  if (page === 'download') {
+    dlPage.style.display = 'flex';
+    cvPage.style.display = 'none';
+    tabDl.classList.add('active');
+    tabCv.classList.remove('active');
+  } else {
+    cvPage.style.display = 'grid';
+    dlPage.style.display = 'none';
+    tabCv.classList.add('active');
+    tabDl.classList.remove('active');
+    // 每次切到转换页都重渲染格式卡片（page-convert 从 none 切换来，需要重新填充）
+    renderFormatGrid(state.selectedCategory || 'video');
+  }
+}
+
+// ── Download UI ───────────────────────────────────────────────────────────────
+async function initDownloadUI() {
+  // 检查 yt-dlp 状态
+  await refreshYtdlpStatus();
+
+  // 粘贴按钮
+  $('dl-btn-paste').addEventListener('click', async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text && text.trim()) {
+        $('dl-url-input').value = text.trim();
+        validateDownloadBtn();
+      }
+    } catch (e) {
+      addDownloadLog('无法读取剪贴板', 'error');
+    }
+  });
+
+  // URL 输入变化
+  $('dl-url-input').addEventListener('input', validateDownloadBtn);
+  $('dl-url-input').addEventListener('paste', () => setTimeout(validateDownloadBtn, 0));
+
+  // 按 Enter 触发下载
+  $('dl-url-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      const btn = $('dl-btn-download');
+      if (!btn.disabled) btn.click();
+    }
+  });
+
+  // 格式选择联动 label
+  $('dl-format-select').addEventListener('change', () => {
+    const sel = $('dl-format-select');
+    $('dl-format-label').textContent = sel.options[sel.selectedIndex].text;
+  });
+  $('dl-quality-select').addEventListener('change', () => {
+    const sel = $('dl-quality-select');
+    $('dl-quality-label').textContent = sel.options[sel.selectedIndex].text;
+  });
+
+  // 输出目录选择
+  $('dl-dir-box').addEventListener('click', async () => {
+    const dir = await window.api.selectOutputDir();
+    if (dir) {
+      downloadState.outputDir = dir;
+      const short = dir.length > 40 ? '...' + dir.slice(-37) : dir;
+      $('dl-dir-label').textContent = short;
+      $('dl-dir-label').style.color = 'var(--text2)';
+      $('dl-dir-label').title = dir;
+    }
+  });
+
+  // yt-dlp 状态徽章点击：安装/更新
+  $('dl-ytdlp-badge').addEventListener('click', async () => {
+    const badge = $('dl-ytdlp-badge');
+    if (badge.classList.contains('loading')) return;
+    await installYtdlpUI();
+  });
+
+  // 下载按钮
+  $('dl-btn-download').addEventListener('click', async () => {
+    if (downloadState.isDownloading) {
+      await window.api.cancelDownload();
+      resetDownloadUI();
+      showToast('已取消下载', 'info');
+      return;
+    }
+
+    const url = $('dl-url-input').value.trim();
+    if (!url) return;
+
+    // 检查输出目录
+    let outputDir = downloadState.outputDir || state.outputDir;
+    if (!outputDir) {
+      const dir = await window.api.selectOutputDir();
+      if (!dir) { showToast('请先选择输出文件夹', 'error'); return; }
+      outputDir = dir;
+      downloadState.outputDir = dir;
+      state.outputDir = dir;
+      const short = dir.length > 40 ? '...' + dir.slice(-37) : dir;
+      $('dl-dir-label').textContent = short;
+      $('dl-dir-label').style.color = 'var(--text2)';
+      $('output-path-display').innerHTML = `<svg width="14" height="14" viewBox="0 0 52 52" fill="none" style="display:inline-block;vertical-align:-2px;margin-right:5px;flex-shrink:0"><rect x="1" y="5" width="50" height="44" rx="9" fill="#2e2e2e"/><rect x="3" y="22" width="46" height="25" rx="7" fill="#5a5a5a"/><path d="M8 23 Q8 19 12 19 L20 19 Q22 19 23 21 L24 23 Z" fill="#444"/></svg>${escapeHtml(dir)}`;
+      validateConvert();
+    }
+
+    // 检查 yt-dlp
+    if (!downloadState.ytdlpInstalled) {
+      showToast('yt-dlp 未安装，正在自动安装...', 'info');
+      const ok = await installYtdlpUI();
+      if (!ok) return;
+    }
+
+    startDownloadUI(url, outputDir);
+  });
+
+  // 日志清空
+  $('dl-log-clear').addEventListener('click', () => {
+    $('dl-log-output').innerHTML = '';
+  });
+
+  // 监听下载进度事件
+  window.api.onDownloadProgress((data) => {
+    if (!downloadState.isDownloading) return;
+    const pct = Math.min(100, Math.max(0, data.percent || 0));
+    $('dl-progress-fill2').style.width = `${pct}%`;
+    $('dl-stat-pct').textContent = `${Math.round(pct)}%`;
+    if (data.speed) $('dl-stat-speed').textContent = data.speed;
+    if (data.eta) $('dl-stat-eta').textContent = `ETA ${data.eta}`;
+  });
+
+  // 监听安装进度
+  window.api.onYtdlpInstallProgress((data) => {
+    if (data && data.percent) {
+      $('dl-ytdlp-badge').textContent = `安装中 ${data.percent}%`;
+    }
+  });
+
+  // 监听下载日志
+  window.api.onDownloadLog((data) => {
+    if (data && data.type !== 'progress') {
+      addDownloadLog(`[下载] ${data.message}`, data.type === 'error' ? 'error' : data.type === 'success' ? 'success' : 'info');
+      addLog(`[下载] ${data.message}`, data.type === 'error' ? 'error' : data.type === 'success' ? 'success' : 'info');
+    }
+  });
+}
+
+async function refreshYtdlpStatus() {
+  const badge = $('dl-ytdlp-badge');
+  badge.className = 'loading';
+  badge.textContent = '检测中...';
+
+  try {
+    const status = await window.api.getYtdlpStatus();
+    downloadState.ytdlpInstalled = status.installed;
+    if (status.installed) {
+      badge.className = 'ok';
+      badge.textContent = `yt-dlp v${status.version || '?'}`;
+      badge.title = `已安装: ${status.path}`;
+    } else {
+      badge.className = 'missing';
+      badge.textContent = '点击安装 yt-dlp';
+      badge.title = '未检测到 yt-dlp，点击安装';
+    }
+    validateDownloadBtn();
+  } catch (e) {
+    badge.className = 'missing';
+    badge.textContent = '检测失败';
+  }
+}
+
+async function installYtdlpUI() {
+  const badge = $('dl-ytdlp-badge');
+  badge.className = 'loading';
+  badge.textContent = '安装中...';
+  addDownloadLog('正在安装 yt-dlp...', 'info');
+  addLog('正在安装 yt-dlp...', 'info');
+
+  try {
+    const result = await window.api.installYtdlp();
+    if (result.success) {
+      downloadState.ytdlpInstalled = true;
+      badge.className = 'ok';
+      badge.textContent = `yt-dlp v${result.version || '?'}`;
+      showToast('yt-dlp 安装成功', 'success');
+      validateDownloadBtn();
+      return true;
+    } else {
+      badge.className = 'missing';
+      badge.textContent = '安装失败，点击重试';
+      showToast(`安装失败: ${result.error}`, 'error');
+      addDownloadLog(`yt-dlp 安装失败: ${result.error}`, 'error');
+      return false;
+    }
+  } catch (e) {
+    badge.className = 'missing';
+    badge.textContent = '安装失败';
+    showToast('安装 yt-dlp 出错', 'error');
+    return false;
+  }
+}
+
+function validateDownloadBtn() {
+  const url = $('dl-url-input').value.trim();
+  const hasUrl = url.length > 0 && (url.startsWith('http://') || url.startsWith('https://'));
+  $('dl-btn-download').disabled = !hasUrl;
+}
+
+async function startDownloadUI(url, outputDir) {
+  downloadState.isDownloading = true;
+  const btn = $('dl-btn-download');
+  const btnText = $('dl-btn-text');
+  const progressSection = $('dl-progress-section');
+
+  btn.classList.add('cancel-mode');
+  btnText.textContent = '取消下载';
+  progressSection.classList.add('show');
+  $('dl-progress-fill2').style.width = '0%';
+  $('dl-stat-pct').textContent = '0%';
+  $('dl-stat-speed').textContent = '';
+  $('dl-stat-eta').textContent = '';
+  $('dl-stat-msg').textContent = '下载中...';
+
+  const format = $('dl-format-select').value;
+  const quality = $('dl-quality-select').value;
+
+  addDownloadLog(`开始下载: ${url}`, 'start');
+  addLog(`[下载] 开始下载: ${url}`, 'start');
+
+  try {
+    const result = await window.api.downloadUrl({ url, outputDir, format, quality });
+
+    if (result.success && result.filePath) {
+      showToast('下载完成，已加入队列', 'success');
+      addDownloadLog(`下载完成: ${result.filePath}`, 'success');
+      addLog(`[下载] 完成: ${result.filePath}`, 'success');
+      // 自动加入转换队列
+      await addFiles([result.filePath]);
+      // 清空输入框
+      $('dl-url-input').value = '';
+      validateDownloadBtn();
+      $('dl-stat-msg').textContent = '✓ 下载完成，已加入转换队列';
+      $('dl-stat-pct').textContent = '100%';
+    } else if (result.cancelled) {
+      addDownloadLog('下载已取消', 'info');
+    } else {
+      showToast(`下载失败: ${result.error}`, 'error');
+      addDownloadLog(`下载失败: ${result.error}`, 'error');
+      addLog(`[下载] 失败: ${result.error}`, 'error');
+    }
+  } catch (e) {
+    showToast(`下载出错: ${e.message}`, 'error');
+    addDownloadLog(`下载异常: ${e.message}`, 'error');
+    addLog(`[下载] 异常: ${e.message}`, 'error');
+  }
+
+  resetDownloadUI();
+}
+
+function resetDownloadUI() {
+  downloadState.isDownloading = false;
+  const btn = $('dl-btn-download');
+  const btnText = $('dl-btn-text');
+
+  btn.classList.remove('cancel-mode');
+  btnText.textContent = '下 载';
+  validateDownloadBtn();
+}
+
+function addDownloadLog(msg, type = 'info') {
+  const out = $('dl-log-output');
+  if (!out) return;
+  const now = new Date();
+  const t = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+  const div = document.createElement('div');
+  div.className = `log-entry ${type}`;
+  div.innerHTML = `<span class="le-time">${t}</span><span class="le-msg">${escapeHtml(msg)}</span>`;
+  out.appendChild(div);
+  out.scrollTop = out.scrollHeight;
 }

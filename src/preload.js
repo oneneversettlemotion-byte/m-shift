@@ -31,5 +31,27 @@ contextBridge.exposeInMainWorld('api', {
       'update-downloading','update-progress','update-downloaded'
     ];
     if (allowed.includes(channel)) ipcRenderer.on(channel, (_, data) => callback(data));
-  }
+  },
+
+  // ── Download APIs ──────────────────────────────────────────────────────────
+  getYtdlpStatus: () => ipcRenderer.invoke('get-ytdlp-status'),
+  installYtdlp: () => ipcRenderer.invoke('install-ytdlp'),
+  downloadUrl: (options) => ipcRenderer.invoke('download-url', options),
+  cancelDownload: () => ipcRenderer.invoke('cancel-download'),
+
+  onDownloadProgress: (callback) => {
+    ipcRenderer.on('download-progress', (event, data) => callback(data));
+  },
+  onDownloadLog: (callback) => {
+    ipcRenderer.on('download-log', (event, data) => callback(data));
+  },
+  onYtdlpInstallProgress: (callback) => {
+    ipcRenderer.on('ytdlp-install-progress', (event, data) => callback(data));
+  },
+
+  // ── 加密音乐解密 ──────────────────────────────────────────────────────────
+  isEncryptedAudio: (filePath) => ipcRenderer.invoke('music:is-encrypted', filePath),
+  getEncryptedExts: () => ipcRenderer.invoke('music:get-encrypted-exts'),
+  decryptMusic: (inputPath, outputDir) => ipcRenderer.invoke('music:decrypt', { inputPath, outputDir }),
+  openUnlockMusicWindow: () => ipcRenderer.invoke('music:open-unlock-window')
 });

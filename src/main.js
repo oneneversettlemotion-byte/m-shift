@@ -18,6 +18,8 @@ if (process.platform === 'darwin') {
 
 const { FORMATS, detectFileType, detectImageSequence, probeFile, convert, buildSequencePattern } = require('./converter');
 const { initUpdater, checkForUpdates } = require('./updater');
+const { getYtdlpStatus, installYtdlp, downloadUrl, cancelDownload } = require('./downloader');
+const { isEncryptedAudio, decryptToFile, ENCRYPTED_EXTS } = require('./musicDecrypt');
 
 let mainWindow;
 
@@ -313,3 +315,77 @@ ipcMain.handle('open-file', (event, filePath) => {
 
 // Get temp dir
 ipcMain.handle('get-temp-dir', () => os.tmpdir());
+
+// ─── Download IPC Handlers ────────────────────────────────────────────────────
+
+// Get yt-dlp install status
+ipcMain.handle('get-ytdlp-status', async () => {
+  return await getYtdlpStatus();
+});
+
+// Install / update yt-dlp
+ipcMain.handle('install-ytdlp', async () => {
+  return await installYtdlp(
+    (prog) => {
+      if (mainWindow) mainWindow.webContents.send('ytdlp-install-progress', prog);
+    },
+    (log) => {
+      if (mainWindow) mainWindow.webContents.send('download-log', log);
+    }
+  );
+});
+
+// Download URL via yt-dlp
+ipcMain.handle('download-url', async (event, options) => {
+  return await downloadUrl(
+    options,
+    (prog) => {
+      if (mainWindow) mainWindow.webContents.send('download-progress', prog);
+    },
+    (log) => {
+      if (mainWindow) mainWindow.webContents.send('download-log', log);
+    }
+  );
+});
+
+// Cancel ongoing download
+ipcMain.handle('cancel-download', () => {
+  cancelDownload();
+});
+
+// 加密音乐：判别与解密
+ipcMain.handle('music:is-encrypted', (event, filePath) => {
+  return isEncryptedAudio(filePath);
+});
+
+ipcMain.handle('music:get-encrypted-exts', () => ENCRYPTED_EXTS);
+
+ipcMain.handle('music:decrypt', async (event, { inputPath, outputDir }) => {
+  // outputDir 未传时默认使用 userData/music-decrypt-tmp
+  const dir = outputDir || path.join(app.getPath('userData'), 'music-decrypt-tmp');
+  return await decryptToFile(inputPath, dir);
+});
+
+// 打开 unlock-music web 窗口
+let unlockWindow = null;
+ipcMain.handle('music:open-unlock-window', () => {
+  if (unlockWindow && !unlockWindow.isDestroyed()) {
+    unlockWindow.focus();
+    return;
+  }
+  unlockWindow = new BrowserWindow({
+    width: 1100,
+    height: 760,
+    title: '加密音乐解锁 - Unlock Music',
+    parent: mainWindow,
+    backgroundColor: '#1e1e1e',
+    autoHideMenuBar: true,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: true
+    }
+  });
+  unlockWindow.loadURL('https://demo.unlock-music.dev/');
+  unlockWindow.on('closed', () => { unlockWindow = null; });
+});

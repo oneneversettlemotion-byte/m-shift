@@ -96,17 +96,37 @@
 
   /* ── Layout ── */
   #app {
-    display: grid;
-    grid-template-rows: 48px 1fr;
-    grid-template-columns: 280px 1fr 300px;
+    display: flex;
+    flex-direction: column;
     height: 100vh;
-    gap: 0;
+    overflow: hidden;
   }
+  /* 转换页三栏布局 */
+  #page-convert {
+    display: grid;
+    grid-template-columns: 280px 1fr 300px;
+    grid-template-rows: 1fr;
+    flex: 1;
+    min-height: 0;
+    height: 0; /* 配合 flex:1 填满剩余空间 */
+  }
+  /* 下载页全屏 */
+  #page-download {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow-y: auto;
+    padding: 40px 60px;
+    background: var(--bg);
+  }
+  /* 页面切换隐藏 */
+  .page-hidden { display: none !important; }
 
   /* ── Titlebar ── */
   #titlebar {
-    grid-column: 1 / -1;
-    grid-row: 1;
     -webkit-app-region: drag;
     display: flex;
     align-items: center;
@@ -155,7 +175,6 @@
   /* ── Left Panel ── */
   #left-panel {
     grid-column: 1;
-    grid-row: 2;
     background: var(--bg2);
     border-right: 1px solid var(--border);
     display: flex;
@@ -326,7 +345,6 @@
   /* ── Middle Panel ── */
   #middle-panel {
     grid-column: 2;
-    grid-row: 2;
     background: var(--bg);
     display: flex;
     flex-direction: column;
@@ -348,6 +366,7 @@
     border-radius: 8px;
   }
   .format-tab {
+    -webkit-app-region: no-drag;
     flex: 1;
     padding: 6px 12px;
     border-radius: 6px;
@@ -374,7 +393,6 @@
     max-height: 220px;
     min-height: 140px;
     overflow-y: auto;
-    /* 切换时保持高度稳定 */
     align-content: start;
   }
   .format-card {
@@ -608,7 +626,6 @@
   /* ── Right Panel ── */
   #right-panel {
     grid-column: 3;
-    grid-row: 2;
     background: var(--bg2);
     border-left: 1px solid var(--border);
     display: flex;
@@ -852,6 +869,449 @@
   }
   .converting { animation: pulse 1.5s infinite; }
 
+  /* ── Page Switcher (Titlebar) ── */
+  #page-switcher {
+    display: flex;
+    background: var(--bg3);
+    border-radius: 9px;
+    padding: 3px;
+    gap: 2px;
+    border: 1px solid var(--border);
+    -webkit-app-region: no-drag;
+  }
+  .page-tab {
+    -webkit-app-region: no-drag;
+    padding: 5px 22px;
+    border-radius: 7px;
+    border: none;
+    background: transparent;
+    color: var(--text3);
+    font-size: 13px;
+    font-weight: 400;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all var(--transition);
+  }
+  .page-tab.active {
+    background: var(--bg4);
+    color: var(--text);
+    font-weight: 600;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+  }
+  .page-tab:hover:not(.active) { color: var(--text2); }
+
+  /* ── Download Page ── */
+  #dl-card {
+    width: 100%;
+    max-width: 700px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+  #dl-header {
+    text-align: center;
+    margin-bottom: 36px;
+  }
+  #dl-header h2 {
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.4px;
+    color: var(--text);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+  }
+  #dl-header p { font-size: 12px; color: var(--text3); }
+
+  /* URL input row */
+  #dl-url-row {
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  #dl-url-wrap {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    padding: 0 12px;
+    transition: border-color var(--transition), box-shadow var(--transition);
+  }
+  #dl-url-wrap:focus-within {
+    border-color: var(--cat-color);
+    box-shadow: 0 0 0 2px rgba(var(--cat-color-rgb),0.15);
+  }
+  #dl-url-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-size: 13px;
+    padding: 12px 4px;
+  }
+  #dl-url-input::placeholder { color: var(--text3); }
+  #dl-btn-paste {
+    padding: 5px 12px;
+    background: var(--bg4);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    color: var(--text3);
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all var(--transition);
+  }
+  #dl-btn-paste:hover { color: var(--text); border-color: var(--cat-color); }
+
+  /* Format/quality/output row */
+  #dl-opts-row {
+    padding: 12px 24px;
+    display: flex;
+    gap: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .dl-select-box {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 12px;
+    cursor: pointer;
+    position: relative;
+  }
+  .dl-select-box select {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+  }
+  .dl-select-label { font-size: 12px; color: var(--text2); flex: 1; }
+  .dl-select-chevron { flex-shrink: 0; color: var(--text3); }
+  .dl-select-box.wide { flex: 2; }
+
+  /* Download button */
+  #dl-btn-row {
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  #dl-btn-download {
+    width: 100%;
+    padding: 12px;
+    background: linear-gradient(135deg, var(--cat-color), color-mix(in srgb, var(--cat-color) 60%, #4aaec8));
+    border: none;
+    border-radius: 9px;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    letter-spacing: 0.2px;
+    transition: all var(--transition);
+    box-shadow: 0 4px 15px rgba(var(--cat-color-rgb),0.3);
+  }
+  #dl-btn-download:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(var(--cat-color-rgb),0.4);
+  }
+  #dl-btn-download:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+  #dl-btn-download.cancel-mode {
+    background: linear-gradient(135deg, #ff5f7a, #c42050);
+    box-shadow: 0 4px 15px rgba(255,95,122,0.3);
+  }
+
+  /* Progress */
+  #dl-progress-section {
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--border);
+    display: none;
+    flex-direction: column;
+    gap: 6px;
+  }
+  #dl-progress-section.show { display: flex; }
+  #dl-progress-track2 {
+    height: 4px;
+    background: var(--bg4);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  #dl-progress-fill2 {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 2px;
+    transition: width 0.3s ease;
+    position: relative;
+  }
+  #dl-progress-fill2::after {
+    content: '';
+    position: absolute;
+    top: 0; right: 0; bottom: 0;
+    width: 30px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3));
+    animation: shimmer 1.5s infinite;
+  }
+  #dl-progress-stats {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+  }
+  #dl-stat-msg { color: var(--text3); }
+  .dl-stat-group { display: flex; gap: 10px; }
+  #dl-stat-speed { color: var(--green); font-weight: 600; }
+  #dl-stat-eta { color: var(--text3); }
+  #dl-stat-pct { color: var(--cat-color); font-weight: 600; }
+
+  /* Log */
+  #dl-log-section {
+    background: var(--bg);
+    border-radius: 0 0 16px 16px;
+  }
+  #dl-log-header {
+    padding: 9px 24px;
+    background: var(--bg3);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  #dl-log-title {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text3);
+  }
+  #dl-log-clear {
+    font-size: 10px;
+    color: var(--text3);
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: all var(--transition);
+    border: 1px solid transparent;
+  }
+  #dl-log-clear:hover { color: var(--text2); border-color: var(--border2); }
+  #dl-log-output {
+    padding: 10px 24px 14px;
+    font-family: 'SF Mono','Menlo','Monaco',monospace;
+    font-size: 10px;
+    line-height: 1.7;
+    min-height: 70px;
+    max-height: 120px;
+    overflow-y: auto;
+  }
+
+  /* Footer */
+  #dl-footer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 18px;
+  }
+  #dl-ytdlp-badge {
+    font-size: 9px;
+    font-weight: 600;
+    padding: 3px 9px;
+    border-radius: 10px;
+    letter-spacing: 0.3px;
+    cursor: pointer;
+    transition: all var(--transition);
+  }
+  #dl-ytdlp-badge.ok {
+    background: rgba(34,211,165,0.12);
+    border: 1px solid rgba(34,211,165,0.25);
+    color: var(--green);
+  }
+  #dl-ytdlp-badge.missing {
+    background: rgba(251,191,36,0.12);
+    border: 1px solid rgba(251,191,36,0.25);
+    color: var(--yellow);
+  }
+  #dl-ytdlp-badge.loading {
+    background: rgba(var(--cat-color-rgb),0.1);
+    border: 1px solid rgba(var(--cat-color-rgb),0.2);
+    color: var(--cat-color);
+  }
+  #dl-footer-hint { font-size: 11px; color: var(--text3); }
+
+  /* ── (OLD) URL Download Panel – kept for CSS compat but hidden ── */
+  #url-download-section {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  #url-download-section .section-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  #url-download-section .section-title span { color: var(--text3); }
+  #ytdlp-status-badge {
+    font-size: 9px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 10px;
+    letter-spacing: 0.3px;
+    cursor: pointer;
+    transition: all var(--transition);
+  }
+  #ytdlp-status-badge.ok {
+    background: rgba(34,211,165,0.15);
+    border: 1px solid rgba(34,211,165,0.3);
+    color: var(--green);
+  }
+  #ytdlp-status-badge.missing {
+    background: rgba(251,191,36,0.15);
+    border: 1px solid rgba(251,191,36,0.3);
+    color: var(--yellow);
+  }
+  #ytdlp-status-badge.loading {
+    background: rgba(var(--cat-color-rgb),0.1);
+    border: 1px solid rgba(var(--cat-color-rgb),0.2);
+    color: var(--cat-color);
+  }
+  #url-input-wrap {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  #url-input {
+    flex: 1;
+    padding: 7px 10px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 12px;
+    outline: none;
+    transition: border-color var(--transition);
+    min-width: 0;
+  }
+  #url-input:focus { border-color: var(--cat-color); box-shadow: 0 0 0 2px rgba(var(--cat-color-rgb),0.15); }
+  #url-input::placeholder { color: var(--text3); }
+  #btn-paste-url {
+    padding: 7px 10px;
+    background: var(--bg4);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    color: var(--text3);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all var(--transition);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  #btn-paste-url:hover { color: var(--text); border-color: var(--cat-color); }
+
+  #url-format-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  #url-format-select, #url-quality-select {
+    flex: 1;
+    padding: 6px 8px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text2);
+    font-size: 11px;
+    outline: none;
+    cursor: pointer;
+  }
+  #url-format-select:focus, #url-quality-select:focus {
+    border-color: var(--cat-color);
+  }
+  #url-format-select option, #url-quality-select option {
+    background: var(--bg3);
+  }
+
+  #btn-download-url {
+    width: 100%;
+    padding: 8px;
+    background: linear-gradient(135deg, var(--cat-color), color-mix(in srgb, var(--cat-color) 60%, #E63F6A));
+    border: none;
+    border-radius: 7px;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    box-shadow: 0 3px 12px rgba(var(--cat-color-rgb),0.3);
+    margin-bottom: 8px;
+  }
+  #btn-download-url:hover { transform: translateY(-1px); box-shadow: 0 5px 16px rgba(var(--cat-color-rgb),0.4); }
+  #btn-download-url:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+  #btn-download-url.cancel-mode {
+    background: linear-gradient(135deg, #ff5f7a, #c42050);
+    box-shadow: 0 3px 12px rgba(255,95,122,0.3);
+  }
+
+  #dl-progress-wrap {
+    display: none;
+    flex-direction: column;
+    gap: 4px;
+  }
+  #dl-progress-wrap.show { display: flex; }
+  #dl-progress-track {
+    height: 4px;
+    background: var(--bg4);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  #dl-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 2px;
+    transition: width 0.3s ease;
+    position: relative;
+  }
+  #dl-progress-fill::after {
+    content: '';
+    position: absolute;
+    top: 0; right: 0; bottom: 0;
+    width: 30px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3));
+    animation: shimmer 1.5s infinite;
+  }
+  #dl-progress-info {
+    font-size: 10px;
+    color: var(--text3);
+    display: flex;
+    justify-content: space-between;
+  }
+  #dl-progress-info .dl-speed { color: var(--green); font-weight: 600; }
+
+  #dl-supported-hint {
+    font-size: 10px;
+    color: var(--text3);
+    line-height: 1.5;
+    text-align: center;
+    padding: 2px 0;
+  }
+
   /* ── Toast ── */
   #toast-container {
     position: fixed;
@@ -885,6 +1345,28 @@
   <!-- Titlebar -->
   <div id="titlebar">
     <div class="spacer"></div>
+
+    <!-- 页面切换 Tab -->
+    <div id="page-switcher">
+      <button class="page-tab active" data-page="download" id="tab-download">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+          <path d="M12 3v13M7 12l5 5 5-5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M3 19h18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+        </svg>
+        下载
+      </button>
+      <button class="page-tab" data-page="convert" id="tab-convert">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+          <rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8" fill="none"/>
+          <rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8" fill="none"/>
+          <rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8" fill="none"/>
+          <rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8" fill="none"/>
+        </svg>
+        转换
+      </button>
+    </div>
+
+    <div class="spacer"></div>
     <button id="theme-toggle" title="切换浅色/深色模式">
       <svg class="icon-sun" width="14" height="14" viewBox="0 0 24 24" fill="none">
         <circle cx="12" cy="12" r="5" fill="currentColor"/>
@@ -907,8 +1389,123 @@
     </div>
   </div>
 
-  <!-- Left Panel: File Input -->
-  <div id="left-panel">
+  <!-- Download Page (full-screen) -->
+  <div id="page-download">
+    <div id="dl-header">
+      <h2>
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+          <path d="M12 3v13M7 12l5 5 5-5" stroke="var(--sky)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M3 19h18" stroke="var(--sky)" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+        网络视频下载
+      </h2>
+      <p>粘贴链接，选择格式，立刻下载到本地</p>
+    </div>
+
+    <div id="dl-card">
+      <!-- URL input -->
+      <div id="dl-url-row">
+        <div id="dl-url-wrap">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="flex-shrink:0">
+            <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" stroke="var(--text3)" stroke-width="2" stroke-linecap="round"/>
+            <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" stroke="var(--text3)" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <input type="text" id="dl-url-input" placeholder="粘贴 YouTube / Bilibili / Twitter / TikTok 等链接..." spellcheck="false">
+          <button id="dl-btn-paste">粘贴</button>
+        </div>
+      </div>
+
+      <!-- Format / Quality / Output -->
+      <div id="dl-opts-row">
+        <div class="dl-select-box">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+            <rect x="2" y="3" width="20" height="18" rx="3" stroke="var(--sky)" stroke-width="1.8" fill="none"/>
+            <path d="M10 8l6 4-6 4V8z" fill="var(--sky)"/>
+          </svg>
+          <span class="dl-select-label" id="dl-format-label">视频</span>
+          <svg class="dl-select-chevron" width="11" height="11" viewBox="0 0 16 16" fill="none">
+            <path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          <select id="dl-format-select">
+            <option value="video">视频</option>
+            <option value="audio">仅音频</option>
+          </select>
+        </div>
+        <div class="dl-select-box">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+            <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" stroke="var(--sky)" stroke-width="1.8" fill="none" stroke-linejoin="round"/>
+          </svg>
+          <span class="dl-select-label" id="dl-quality-label">最高画质</span>
+          <svg class="dl-select-chevron" width="11" height="11" viewBox="0 0 16 16" fill="none">
+            <path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          <select id="dl-quality-select">
+            <option value="best">最高画质</option>
+            <option value="1080p">1080p</option>
+            <option value="720p">720p</option>
+            <option value="480p">480p</option>
+          </select>
+        </div>
+        <div class="dl-select-box wide" id="dl-dir-box" style="cursor:pointer">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+            <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" stroke="var(--sky)" stroke-width="1.8" fill="none" stroke-linejoin="round"/>
+          </svg>
+          <span class="dl-select-label" id="dl-dir-label" style="color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">点击选择输出文件夹...</span>
+        </div>
+      </div>
+
+      <!-- Download button -->
+      <div id="dl-btn-row">
+        <button id="dl-btn-download" disabled>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+            <path d="M12 3v13M7 12l5 5 5-5" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M3 19h18" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
+          </svg>
+          <span id="dl-btn-text">下 载</span>
+        </button>
+      </div>
+
+      <!-- Progress -->
+      <div id="dl-progress-section">
+        <div id="dl-progress-track2">
+          <div id="dl-progress-fill2" style="width:0%"></div>
+        </div>
+        <div id="dl-progress-stats">
+          <span id="dl-stat-msg">下载中...</span>
+          <div class="dl-stat-group">
+            <span id="dl-stat-speed"></span>
+            <span id="dl-stat-eta"></span>
+            <span id="dl-stat-pct">0%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Log -->
+      <div id="dl-log-section">
+        <div id="dl-log-header">
+          <span id="dl-log-title">下载日志</span>
+          <span id="dl-log-clear">清空</span>
+        </div>
+        <div id="dl-log-output">
+          <div class="log-entry info">
+            <span class="le-time">--:--:--</span>
+            <span class="le-msg">M-SHIFT 已就绪。</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer: yt-dlp status -->
+    <div id="dl-footer">
+      <span id="dl-ytdlp-badge" class="loading" title="点击安装/更新 yt-dlp">检测中...</span>
+      <span id="dl-footer-hint">支持 YouTube · Bilibili · Twitter · TikTok 等 1000+ 平台</span>
+    </div>
+  </div>
+
+  <!-- Convert Page (original 3-column layout) -->
+  <div id="page-convert" style="display:none">
+    <!-- Left Panel: File Input -->
+    <div id="left-panel">
     <div class="panel-section">
       <div class="section-title">输入文件</div>
       <div id="drop-zone">
@@ -1005,6 +1602,9 @@
           </svg>音频</button>
       </div>
       <div class="format-grid" id="format-grid"></div>
+      <button id="btn-unlock-music" type="button" style="display:none;-webkit-app-region:no-drag;width:100%;margin-top:12px;padding:10px 14px;background:linear-gradient(135deg,#F4845F,#E66B3D);border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(244,132,95,0.3);transition:all .2s">
+        🔓 加密音乐解锁（QQ/酷狗/酷我/虾米/咪咕/网易云）
+      </button>
     </div>
 
     <div id="settings-area">
@@ -1242,8 +1842,7 @@
         </div>
       </div>
     </div>
-  </div>
-</div>
+  </div><!-- end #page-convert -->
 
 <div id="toast-container"></div>
 
@@ -1257,6 +1856,28 @@
   document.getElementById('theme-toggle').addEventListener('click', () => {
     const isLight = document.documentElement.classList.toggle('light-mode');
     localStorage.setItem('theme', isLight ? 'light' : 'dark');
+  });
+
+  // 页面切换（内联绑定，确保不受 renderer.js 加载时序影响）
+  document.querySelectorAll('.page-tab').forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      var page = tab.getAttribute('data-page');
+      var dlPage = document.getElementById('page-download');
+      var cvPage = document.getElementById('page-convert');
+      var tabDl  = document.getElementById('tab-download');
+      var tabCv  = document.getElementById('tab-convert');
+      if (page === 'download') {
+        dlPage.style.display = 'flex';
+        cvPage.style.display = 'none';
+        tabDl.classList.add('active');
+        tabCv.classList.remove('active');
+      } else {
+        cvPage.style.display = 'grid';
+        dlPage.style.display = 'none';
+        tabCv.classList.add('active');
+        tabDl.classList.remove('active');
+      }
+    });
   });
 </script>
 </body>

@@ -227,8 +227,16 @@ function convertFFmpeg(options, onProgress, onLog) {
     }
 
     // Output codec
+    const AUDIO_EXTS = new Set(['mp3','aac','wav','flac','ogg','opus','m4a','aiff']);
+    const isAudioOutput = AUDIO_EXTS.has(String(format.ext).toLowerCase());
     if (format.codec) {
-      cmd = cmd.videoCodec(format.codec);
+      if (isAudioOutput) {
+        cmd = cmd.audioCodec(format.codec);
+        // 音频输出默认去掉视频流，避免某些容器里残留封面图导致报错
+        cmd = cmd.noVideo();
+      } else {
+        cmd = cmd.videoCodec(format.codec);
+      }
     }
 
     // Quality settings
