@@ -42,8 +42,12 @@
           ]
         }
       ],
-      "darkModeSupport": true
+      "darkModeSupport": true,
+      "identity": null,
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false
     },
+    "afterPack": "build/afterPack.js",
     "win": {
       "icon": "build/icon.ico",
       "target": [
